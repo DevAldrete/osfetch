@@ -218,7 +218,7 @@ Each component uses minimal resources:
 
 ## License
 
-[Add your license here]
+GPL v3
 
 ## Contributing
 
