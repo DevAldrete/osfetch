@@ -1,0 +1,97 @@
+services:
+  # Middleware proxy - routes client connections to servers
+  middleware:
+    build:
+      context: ./middleware
+      dockerfile: Dockerfile
+    container_name: monitor-middleware
+    ports:
+      - "9000:9000"
+    environment:
+      - MIDDLEWARE_PORT=9000
+      # Register monitoring servers
+      - SERVER_LIST=server1:server1:9001,server2:server2:9001,server3:server3:9001
+    networks:
+      - monitoring-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import socket; s=socket.socket(); s.connect(('localhost', 9000)); s.close()",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # Monitoring Server 1
+  server1:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: monitor-server1
+    environment:
+      - SERVER_NAME=server1
+      - SERVER_PORT=9001
+    networks:
+      - monitoring-network
+    restart: unless-stopped
+    # Allow access to host system metrics (optional - for real system monitoring)
+    # privileged: true
+    # pid: "host"
+
+  # Monitoring Server 2
+  server2:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: monitor-server2
+    environment:
+      - SERVER_NAME=server2
+      - SERVER_PORT=9001
+    networks:
+      - monitoring-network
+    restart: unless-stopped
+
+  # Monitoring Server 3
+  server3:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: monitor-server3
+    environment:
+      - SERVER_NAME=server3
+      - SERVER_PORT=9001
+    networks:
+      - monitoring-network
+    restart: unless-stopped
+
+  # Client - for interactive monitoring
+  # Run with: docker-compose run --rm client
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: monitor-client
+    environment:
+      - MIDDLEWARE_HOST=middleware
+      - MIDDLEWARE_PORT=9000
+    networks:
+      - monitoring-network
+    stdin_open: true
+    tty: true
+    depends_on:
+      - middleware
+      - server1
+      - server2
+      - server3
+    profiles:
+      - client # Only start when explicitly requested
+
+networks:
+  monitoring-network:
+    driver: bridge
+    name: monitoring-network
