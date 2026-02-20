@@ -16,3 +16,9 @@ lambda_middleware.zip
 # Variable files that may contain secrets
 *.tfvars
 !example.tfvars
+
+# Keys
+*.pem
+
+# Plans
+tfplan

@@ -49,7 +49,7 @@ resource "aws_lambda_function" "middleware" {
 
   function_name = "${local.name_prefix}-middleware-lambda"
   description   = "osfetch middleware proxy — WebSocket / API GW edition"
-  role          = aws_iam_role.lambda[0].arn
+  role          = data.aws_iam_role.lab_role.arn
   handler       = "middleware_proxy.handler"
   runtime       = "python3.11"
 
@@ -85,8 +85,6 @@ resource "aws_lambda_function" "middleware" {
   depends_on = [
     aws_instance.server,
     aws_apigatewayv2_api.middleware,
-    aws_iam_role_policy_attachment.lambda_basic,
-    aws_iam_role_policy_attachment.lambda_vpc,
   ]
 
   tags = {

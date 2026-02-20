@@ -43,12 +43,12 @@ resource "aws_instance" "server" {
   subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.server.id]
   key_name               = var.key_name != "" ? var.key_name : null
-  iam_instance_profile   = aws_iam_instance_profile.ec2.name
+  iam_instance_profile   = data.aws_iam_instance_profile.lab_profile.name
 
-  # Root volume — 8 GB gp3 is enough for AL2023 + Python packages
+  # Root volume — 30 GB gp3 is enough for AL2023 + Python packages
   root_block_device {
     volume_type           = "gp3"
-    volume_size           = 8
+    volume_size           = 30
     delete_on_termination = true
     encrypted             = true
   }
@@ -61,11 +61,11 @@ resource "aws_instance" "server" {
   #   3. Write monitor_server.py to /opt/osfetch/
   #   4. Write /etc/systemd/system/osfetch-server.service
   #   5. Enable + start the service
-  user_data = base64encode(templatefile("${path.module}/templates/server_userdata.sh.tpl", {
-    server_name  = "server${count.index + 1}"
-    server_port  = var.server_port
-    project      = var.project
-    environment  = var.environment
+  user_data_base64 = base64gzip(templatefile("${path.module}/templates/server_userdata.sh.tpl", {
+    server_name = "server${count.index + 1}"
+    server_port = var.server_port
+    project     = var.project
+    environment = var.environment
   }))
 
   # Ensure the VPC + SG are ready first
@@ -91,21 +91,21 @@ resource "aws_instance" "middleware" {
   subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.middleware.id]
   key_name               = var.key_name != "" ? var.key_name : null
-  iam_instance_profile   = aws_iam_instance_profile.ec2.name
+  iam_instance_profile   = data.aws_iam_instance_profile.lab_profile.name
 
   root_block_device {
     volume_type           = "gp3"
-    volume_size           = 8
+    volume_size           = 30
     delete_on_termination = true
     encrypted             = true
   }
 
   # SERVER_LIST is built from the private IPs of the server instances.
   # Format: "server1:10.10.1.x:9001,server2:10.10.1.y:9001,..."
-  user_data = base64encode(templatefile("${path.module}/templates/middleware_userdata.sh.tpl", {
+  user_data_base64 = base64gzip(templatefile("${path.module}/templates/middleware_userdata.sh.tpl", {
     middleware_port = var.middleware_port
     server_port     = var.server_port
-    server_list     = join(",", [
+    server_list = join(",", [
       for i, inst in aws_instance.server :
       "server${i + 1}:${inst.private_ip}:${var.server_port}"
     ])
@@ -136,16 +136,16 @@ resource "aws_instance" "client" {
   subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.client.id]
   key_name               = var.key_name != "" ? var.key_name : null
-  iam_instance_profile   = aws_iam_instance_profile.ec2.name
+  iam_instance_profile   = data.aws_iam_instance_profile.lab_profile.name
 
   root_block_device {
     volume_type           = "gp3"
-    volume_size           = 10 # slightly larger for Docker image layer cache
+    volume_size           = 30 # slightly larger for Docker image layer cache
     delete_on_termination = true
     encrypted             = true
   }
 
-  user_data = base64encode(templatefile("${path.module}/templates/client_userdata.sh.tpl", {
+  user_data_base64 = base64gzip(templatefile("${path.module}/templates/client_userdata.sh.tpl", {
     middleware_host = aws_instance.middleware.private_ip
     middleware_port = var.middleware_port
     project         = var.project

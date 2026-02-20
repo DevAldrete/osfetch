@@ -36,3 +36,6 @@ logs/
 
 # AI
 AGENTS.md
+
+# Keys
+*.pem
