@@ -11,13 +11,13 @@ import socket
 import platform
 import os
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 
 class ServerMonitor:
     """Collects comprehensive system metrics"""
 
-    def __init__(self, server_name: str = None):
+    def __init__(self, server_name: Optional[str] = None):
         self.server_name = server_name or socket.gethostname()
         self.start_time = datetime.now()
 
@@ -293,7 +293,7 @@ class MonitoringServer:
     """WebSocket-like server for streaming metrics"""
 
     def __init__(
-        self, host: str = "0.0.0.0", port: int = 9001, server_name: str = None
+        self, host: str = "0.0.0.0", port: int = 9001, server_name: Optional[str] = None
     ):
         self.host = host
         self.port = port
@@ -309,6 +309,21 @@ class MonitoringServer:
             command_data: Dictionary containing the command and parameters
             writer: StreamWriter to send response
         """
+        # Check authentication token if configured
+        expected_token = os.getenv("AUTH_TOKEN")
+        if expected_token and command_data.get("auth_token") != expected_token:
+            response = {
+                "type": "command_result",
+                "success": False,
+                "error": "Unauthorized: Invalid or missing auth token",
+            }
+            try:
+                writer.write(json.dumps(response).encode() + b"\n")
+                await writer.drain()
+            except (ConnectionResetError, BrokenPipeError):
+                pass
+            return
+
         action = command_data.get("action", "").upper()
 
         if action == "STOP":
@@ -410,6 +425,32 @@ class MonitoringServer:
         self.clients.add(writer)
 
         try:
+            # Check for authentication if required
+            expected_token = os.getenv("AUTH_TOKEN")
+            if expected_token:
+                try:
+                    # Wait up to 5 seconds for auth message
+                    auth_data = await asyncio.wait_for(reader.readline(), timeout=5.0)
+                    if not auth_data:
+                        raise ValueError("Empty auth data")
+
+                    try:
+                        auth_msg = json.loads(auth_data.decode("utf-8"))
+                        if (
+                            auth_msg.get("action") != "AUTH"
+                            or auth_msg.get("token") != expected_token
+                        ):
+                            raise ValueError("Invalid token")
+                    except json.JSONDecodeError:
+                        raise ValueError("Invalid JSON in auth data")
+
+                except (asyncio.TimeoutError, ValueError) as e:
+                    print(f"[WARN] Client {addr} failed authentication: {e}")
+                    error_msg = {"type": "error", "message": "Authentication failed"}
+                    writer.write(json.dumps(error_msg).encode() + b"\n")
+                    await writer.drain()
+                    return
+
             # Send initial handshake
             welcome = {
                 "type": "handshake",

@@ -639,12 +639,16 @@ class MonitoringClient:
             cpu_style = (
                 "red"
                 if proc["cpu_percent"] > 50
-                else "yellow" if proc["cpu_percent"] > 20 else "green"
+                else "yellow"
+                if proc["cpu_percent"] > 20
+                else "green"
             )
             mem_style = (
                 "red"
                 if proc["memory_percent"] > 50
-                else "yellow" if proc["memory_percent"] > 20 else "green"
+                else "yellow"
+                if proc["memory_percent"] > 20
+                else "green"
             )
 
             table.add_row(

@@ -294,6 +294,20 @@ class MonitoringServer:
         self.clients: set = set()
 
     async def handle_command(self, command_data: dict, writer: asyncio.StreamWriter) -> None:
+        expected_token = os.getenv("AUTH_TOKEN")
+        if expected_token and command_data.get("auth_token") != expected_token:
+            response = {
+                "type": "command_result",
+                "success": False,
+                "error": "Unauthorized: Invalid or missing auth token",
+            }
+            try:
+                writer.write(json.dumps(response).encode() + b"\n")
+                await writer.drain()
+            except (ConnectionResetError, BrokenPipeError):
+                pass
+            return
+
         action = command_data.get("action", "").upper()
         if action == "STOP":
             pid = command_data.get("pid")
@@ -374,6 +388,26 @@ class MonitoringServer:
         print(f"[INFO] Client connected: {addr}")
         self.clients.add(writer)
         try:
+            # Check for authentication if required
+            expected_token = os.getenv("AUTH_TOKEN")
+            if expected_token:
+                try:
+                    auth_data = await asyncio.wait_for(reader.readline(), timeout=5.0)
+                    if not auth_data:
+                        raise ValueError("Empty auth data")
+                    try:
+                        auth_msg = json.loads(auth_data.decode("utf-8"))
+                        if auth_msg.get("action") != "AUTH" or auth_msg.get("token") != expected_token:
+                            raise ValueError("Invalid token")
+                    except json.JSONDecodeError:
+                        raise ValueError("Invalid JSON in auth data")
+                except (asyncio.TimeoutError, ValueError) as e:
+                    print(f"[WARN] Client {addr} failed authentication: {e}")
+                    error_msg = {"type": "error", "message": "Authentication failed"}
+                    writer.write(json.dumps(error_msg).encode() + b"\n")
+                    await writer.drain()
+                    return
+
             welcome = {
                 "type": "handshake",
                 "server_name": self.monitor.server_name,
@@ -443,6 +477,7 @@ WorkingDirectory=/opt/osfetch
 # Runtime configuration — matches docker-compose environment block
 Environment="SERVER_NAME=${server_name}"
 Environment="SERVER_PORT=${server_port}"
+Environment="AUTH_TOKEN=${auth_token}"
 
 ExecStart=/usr/bin/python3.11 -u /opt/osfetch/monitor_server.py
 

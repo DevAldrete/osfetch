@@ -9,6 +9,7 @@ services:
       - "9000:9000"
     environment:
       - MIDDLEWARE_PORT=9000
+      - AUTH_TOKEN=super_secret_token
       # Register monitoring servers
       - SERVER_LIST=server1:server1:9001,server2:server2:9001,server3:server3:9001
     networks:
@@ -36,6 +37,7 @@ services:
     environment:
       - SERVER_NAME=server1
       - SERVER_PORT=9001
+      - AUTH_TOKEN=super_secret_token
     networks:
       - monitoring-network
     restart: unless-stopped
@@ -52,6 +54,7 @@ services:
     environment:
       - SERVER_NAME=server2
       - SERVER_PORT=9001
+      - AUTH_TOKEN=super_secret_token
     networks:
       - monitoring-network
     restart: unless-stopped
@@ -65,31 +68,32 @@ services:
     environment:
       - SERVER_NAME=server3
       - SERVER_PORT=9001
+      - AUTH_TOKEN=super_secret_token
     networks:
       - monitoring-network
     restart: unless-stopped
 
-  # Client - for interactive monitoring
-  # Run with: docker-compose run --rm client
+  # Client - for interactive monitoring via Streamlit
   client:
     build:
       context: ./client
       dockerfile: Dockerfile
     container_name: monitor-client
+    ports:
+      - "8501:8501"
     environment:
       - MIDDLEWARE_HOST=middleware
       - MIDDLEWARE_PORT=9000
+      - UI_PASSWORD=my_secure_password
+      - AUTH_TOKEN=super_secret_token
     networks:
       - monitoring-network
-    stdin_open: true
-    tty: true
     depends_on:
       - middleware
       - server1
       - server2
       - server3
-    profiles:
-      - client # Only start when explicitly requested
+    restart: unless-stopped
 
 networks:
   monitoring-network:

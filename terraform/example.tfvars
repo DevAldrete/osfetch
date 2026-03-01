@@ -20,3 +20,7 @@ server_count = 3
 # Set to true if you want to also test the API GW WebSocket approach.
 # Requires Lambda + API Gateway to be available in the lab account.
 enable_lambda_middleware = false
+
+# ── Security ──────────────────────────────────────────────────
+# auth_token = "my_custom_token"
+# ui_password = "my_custom_password"

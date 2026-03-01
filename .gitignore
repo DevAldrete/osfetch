@@ -36,6 +36,10 @@ logs/
 
 # AI
 AGENTS.md
+.agents/
+skills-lock.json
 
 # Keys
 *.pem
+
+

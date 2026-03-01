@@ -107,6 +107,15 @@ resource "aws_security_group" "client" {
     cidr_blocks = [var.admin_cidr]
   }
 
+  # Streamlit Web UI - operator connects here
+  ingress {
+    description = "Streamlit Web UI"
+    from_port   = 8501
+    to_port     = 8501
+    protocol    = "tcp"
+    cidr_blocks = [var.admin_cidr]
+  }
+
   # All outbound - client must reach middleware on 9000
   egress {
     description = "All outbound"

@@ -7,7 +7,7 @@ Provisions a complete osfetch monitoring stack on AWS using EC2 and VPC only (co
 ```
 internet
     │
-    │  SSH / port 9000
+    │  SSH / port 9000 (middleware) / port 8501 (client Streamlit UI)
     ▼
 ┌───────────────────────────────────────────────────────┐
 │  VPC  10.10.0.0/16                                    │
@@ -16,8 +16,8 @@ internet
 │  ┌──────────────┐   ┌──────────────┐                  │
 │  │  middleware  │   │   client     │                  │
 │  │  EC2         │   │   EC2        │                  │
-│  │  port 9000   │   │  (Docker TUI)│                  │
-│  │  systemd     │   │              │                  │
+│  │  port 9000   │   │  port 8501   │                  │
+│  │  systemd     │   │  (Streamlit) │                  │
 │  └──────┬───────┘   └──────────────┘                  │
 │         │ TCP :9001                                    │
 │  ┌──────▼──────────────────────────────────────────┐  │
@@ -34,7 +34,7 @@ All instances use **Amazon Linux 2023**. Package installs happen via `user_data`
 |------|-------|--------|---------|
 | `server` | 3 (configurable) | public | port 9001 (SG: middleware only) |
 | `middleware` | 1 | public | port 9000 (SG: 0.0.0.0/0) |
-| `client` | 1 | public | port 22 (SSH bastion) |
+| `client` | 1 | public | port 8501 (Streamlit UI, SG: `admin_cidr`) and port 22 (SSH) |
 
 ## Prerequisites
 
@@ -62,19 +62,26 @@ terraform output
 
 ## Connecting
 
-After `terraform apply` completes, `terraform output` shows ready-to-use commands:
+After `terraform apply` completes, `terraform output` shows ready-to-use commands and URLs.
 
-### SSH + Docker TUI (recommended)
+### Streamlit Web UI (recommended)
+
+You can access the monitoring dashboard through your browser. Make sure your IP address is included in the `admin_cidr` variable to allow access.
+
+```text
+http://<client_public_ip>:8501
+```
+
+You will need the `ui_password` to log in, which you can specify in your `terraform.tfvars`.
+
+### SSH Management Access
 
 ```bash
 # SSH into the client bastion
 ssh -i my-lab-key.pem ec2-user@<client_public_ip>
 
-# Once inside the bastion — view-only dashboard
-osfetch-view
-
-# Interactive dashboard (process start/stop)
-osfetch-interactive
+# Check Streamlit app logs
+docker logs -f osfetch-client-app
 ```
 
 ### SSM Session Manager (no key pair needed)
@@ -83,8 +90,8 @@ osfetch-interactive
 # Open shell on client bastion
 aws ssm start-session --target <client_instance_id> --region us-east-1
 
-# Then run the same helpers
-osfetch-view
+# Check Streamlit app logs
+docker logs -f osfetch-client-app
 ```
 
 ### Check service health on a server node

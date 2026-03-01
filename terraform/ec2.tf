@@ -66,6 +66,7 @@ resource "aws_instance" "server" {
     server_port = var.server_port
     project     = var.project
     environment = var.environment
+    auth_token  = var.auth_token
   }))
 
   # Ensure the VPC + SG are ready first
@@ -111,6 +112,7 @@ resource "aws_instance" "middleware" {
     ])
     project     = var.project
     environment = var.environment
+    auth_token  = var.auth_token
   }))
 
   # Must wait for server instances so their private IPs are known
@@ -150,6 +152,8 @@ resource "aws_instance" "client" {
     middleware_port = var.middleware_port
     project         = var.project
     environment     = var.environment
+    auth_token      = var.auth_token
+    ui_password     = var.ui_password
   }))
 
   depends_on = [

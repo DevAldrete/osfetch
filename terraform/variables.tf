@@ -121,3 +121,18 @@ variable "enable_lambda_middleware" {
   type        = bool
   default     = false
 }
+
+# ── Security ─────────────────────────────────────────────────
+variable "auth_token" {
+  description = "Shared secret token for authentication between middleware and servers."
+  type        = string
+  default     = "super_secret_token"
+  sensitive   = true
+}
+
+variable "ui_password" {
+  description = "Password for the Streamlit web dashboard."
+  type        = string
+  default     = "admin"
+  sensitive   = true
+}

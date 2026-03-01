@@ -73,10 +73,11 @@ class MiddlewareProxy:
         for env_var in os.environ:
             if env_var.startswith("MONITOR_SERVER_"):
                 server_info = os.getenv(env_var)
-                parts = server_info.split(":")
-                if len(parts) == 3:
-                    name, host, port = parts
-                    await self.registry.register_server(name, host, int(port))
+                if server_info:
+                    parts = server_info.split(":")
+                    if len(parts) == 3:
+                        name, host, port = parts
+                        await self.registry.register_server(name, host, int(port))
 
     async def proxy_data(
         self, server_reader: asyncio.StreamReader, client_writer: asyncio.StreamWriter
@@ -166,6 +167,14 @@ class MiddlewareProxy:
             reader, writer = await asyncio.open_connection(
                 server_info["host"], server_info["port"]
             )
+
+            # Send auth token if configured
+            auth_token = os.getenv("AUTH_TOKEN")
+            if auth_token:
+                auth_msg = {"action": "AUTH", "token": auth_token}
+                writer.write(json.dumps(auth_msg).encode() + b"\n")
+                await writer.drain()
+
             return reader, writer
         except Exception as e:
             print(f"[ERROR] Failed to connect to {server_name}: {e}")

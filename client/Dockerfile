@@ -10,7 +10,9 @@ COPY pyproject.toml .
 RUN uv pip install --system .
 
 # Copy application
-COPY monitor_client.py .
+COPY . .
 
-# Run the client in interactive mode
-CMD ["python", "-u", "monitor_client.py"]
+EXPOSE 8501
+
+# Run the streamlit app
+CMD ["python", "-m", "streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
